@@ -2,15 +2,13 @@ import requests
 from bs4 import BeautifulSoup
 
 
-# -----------------------------
-# CONTROLLED SOURCES (LESS NOISE)
-# -----------------------------
 SOURCES = [
     ("https://isap.sejm.gov.pl", "ISAP"),
+    ("https://rcl.gov.pl", "RCL"),
     ("https://www.gov.pl/web/finanse", "MF"),
-    ("https://www.podatki.gov.pl", "TAX GOV"),
-    ("https://www.prawo.pl/podatki", "PRAWO.PL"),
-    ("https://www.rp.pl/podatki", "RP.PL")
+    ("https://www.podatki.gov.pl", "TAX_GOV"),
+    ("https://www.prawo.pl/podatki", "PRAWO"),
+    ("https://www.rp.pl/podatki", "RP")
 ]
 
 
@@ -23,14 +21,14 @@ def scrape(url, source):
         items = []
 
         for a in soup.find_all("a"):
-
             t = a.get_text(strip=True)
 
             if t and len(t) > 40:
 
                 items.append({
                     "title": t,
-                    "source": source
+                    "source": source,
+                    "url": url
                 })
 
         return items
@@ -46,13 +44,13 @@ def get_all_news():
     for url, source in SOURCES:
         all_items += scrape(url, source)
 
-    # dedup early
+    # dedupe
     seen = set()
-    unique = []
+    clean = []
 
     for i in all_items:
         if i["title"] not in seen:
             seen.add(i["title"])
-            unique.append(i)
+            clean.append(i)
 
-    return unique
+    return clean
