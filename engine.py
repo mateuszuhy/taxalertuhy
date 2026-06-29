@@ -1,43 +1,30 @@
-from scraper import get_news
-from openai import OpenAI
+from scraper import get_all_news
+from ai_engine import process_batch
 from ppt_generator import create_ppt
+from cache import get_cache, set_cache
 
-def run_tax_engine(api_key):
 
-    client = OpenAI(api_key=api_key)
+def run_engine(api_key):
 
-    news = get_news()
+    cached = get_cache()
 
-    processed = []
+    if cached:
+        return cached
 
-    for n in news:
+    news = get_all_news()
 
-        prompt = f"""
-You are a Big4 tax AI.
+    # 🔥 LIMIT (anti rate-limit protection)
+    news = news[:8]
 
-Classify and summarize:
-
-TEXT:
-{n['title']}
-
-Return:
-- category: LEAD/STANDARD/REJECT
-- score (0-100)
-- summary (max 5 bullets)
-"""
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        processed.append(response.choices[0].message.content)
+    processed = process_batch(news, api_key)
 
     result = {
-        "lead": [p for p in processed if "LEAD" in p],
-        "standard": [p for p in processed if "STANDARD" in p]
+        "lead": [n for n in processed if n["category"] == "LEAD"],
+        "standard": [n for n in processed if n["category"] == "STANDARD"]
     }
 
     create_ppt(result)
+
+    set_cache(result)
 
     return result
