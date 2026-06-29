@@ -1,26 +1,47 @@
 import streamlit as st
 from engine import run_engine
 
-api_key = st.text_input("OpenAI API Key", type="password")
+st.set_page_config(page_title="UHY Tax Alert V5.2", layout="wide")
 
-if api_key:
+st.title("🔵 UHY TAX ALERT ENGINE V5.2")
 
-    result = run_engine(api_key)
+# API KEY
+api_key = st.text_input("Wprowadź OpenAI API Key", type="password")
 
-    st.subheader("🟢 TAX ALERT")
+# 🔵 PRZYCISK START (KLUCZOWE)
+run = st.button("🚀 Generuj Tax Alert")
+
+if api_key and run:
+
+    with st.spinner("Generowanie analizy podatkowej..."):
+
+        result = run_engine(api_key)
+
+    st.success("Gotowe!")
+
+    # NEWSY
+    st.subheader("🟢 Tax Alert")
 
     for n in result["items"]:
 
         st.markdown(f"### {n.title}")
-        st.write(n.what_changed)
-        st.write(n.impact)
-        st.write(n.legal_basis)
-        st.write(f"Źródło: {n.source}")
+        st.write("📌", n.what_changed)
+        st.write("📊", n.impact)
+        st.write("⚖️", n.legal_basis)
+        st.write(f"🔗 {n.source}")
         st.write(n.url)
         st.write("---")
 
-    st.download_button(
-        "Pobierz PPT",
-        open(result["file_path"], "rb"),
-        file_name="tax_alert.pptx"
-    )
+    # DOWNLOAD PPT
+    with open(result["file_path"], "rb") as f:
+        st.download_button(
+            "⬇️ Pobierz prezentację PPT",
+            f,
+            file_name="uhy_tax_alert_v5_2.pptx"
+        )
+
+elif api_key and not run:
+    st.info("Kliknij przycisk, aby wygenerować Tax Alert.")
+
+else:
+    st.warning("Wprowadź OpenAI API Key, aby rozpocząć.")
