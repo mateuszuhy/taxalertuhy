@@ -1,32 +1,31 @@
-import os
 from pptx import Presentation
 
 
-def create_ppt(data):
-
-    os.makedirs("output", exist_ok=True)
+def create_ppt(items):
 
     prs = Presentation()
 
     slide = prs.slides.add_slide(prs.slide_layouts[0])
-    slide.shapes.title.text = "UHY TAX ALERT – V4 (LEGAL INTELLIGENCE)"
+    slide.shapes.title.text = "UHY TAX ALERT V5.2"
 
-    def add(slide_data):
+    for n in items:
 
-        for n in slide_data:
+        slide = prs.slides.add_slide(prs.slide_layouts[1])
 
-            slide = prs.slides.add_slide(prs.slide_layouts[1])
-            slide.shapes.title.text = n.get("title", "")
+        slide.shapes.title.text = n.title
 
-            text = "\n\n".join(n.get("summary", []))
+        content = f"""
+{n.what_changed}
 
-            if n.get("url"):
-                text += f"\n\nŹRÓDŁO: {n['url']}"
+{n.impact}
 
-            slide.placeholders[1].text = text
+{n.legal_basis}
 
-    add(data.get("lead", []))
-    add(data.get("standard", []))
+Źródło: {n.source}
+{n.url}
+"""
+
+        slide.placeholders[1].text = content
 
     path = "output/tax_alert.pptx"
     prs.save(path)
