@@ -13,8 +13,8 @@ def run_engine(api_key):
 
     news = get_all_news()
 
-    # 🔥 LIMIT (anti rate-limit protection)
-    news = news[:8]
+    # 🔥 HARD LIMIT (stability)
+    news = news[:6]
 
     processed = process_batch(news, api_key)
 
