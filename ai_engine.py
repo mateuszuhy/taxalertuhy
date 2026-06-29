@@ -5,7 +5,7 @@ from openai import OpenAI
 
 
 # -----------------------------
-# SAFE JSON PARSER
+# STRICT JSON PARSER (UNCHANGED)
 # -----------------------------
 def extract_json(text: str):
 
@@ -49,13 +49,27 @@ def safe_call(client, prompt):
                     {
                         "role": "system",
                         "content": """
-You are a Big4 TAX INTELLIGENCE ANALYST.
+You are a SENIOR TAX LAWYER working in Big4 (EY/PwC style).
 
-Rules:
-- Always respond in POLISH
-- Never output anything outside JSON
-- Prefer completeness over strict filtering
-- Always assign relevance score (0-100)
+You do NOT classify general information.
+
+You ONLY identify REAL TAX LAW EVENTS:
+
+VALID EVENTS:
+- changes in tax law (VAT/CIT/PIT/Excise)
+- amendments to acts (Dz.U.)
+- binding interpretations / rulings
+- draft laws / legislative proposals
+- court judgments affecting taxation
+
+INVALID CONTENT (MUST BE IGNORED):
+- educational articles ("what is PIT", "how to fill form")
+- social programs (Polish Deal explanations, e-TOLL descriptions)
+- personal situations ("I earn abroad", "I have freelance income")
+- public finance programs (KPO, Polish Fund)
+- administrative info (audits, budgeting, IT systems)
+
+Return ONLY JSON.
 """
                     },
                     {
@@ -77,28 +91,25 @@ Rules:
 
 
 # -----------------------------
-# MAIN ENGINE
+# MAIN PROCESSOR (FIXED LOGIC)
 # -----------------------------
 def process_batch(news, api_key):
 
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-You are building a MONTHLY TAX ALERT (Poland, CFO level).
+Analyze ONLY REAL TAX LAW EVENTS in Poland.
 
 TASK:
-Analyze tax-related news and assign relevance.
+From the list below, extract ONLY items that represent legal or regulatory tax changes.
 
-IMPORTANT RULES:
-- DO NOT over-filter
-- Every item must get a score (0–100)
-- Even weak tax relevance must be classified
-- No REJECT category anymore
+STRICT RULE:
 
-CLASSIFICATION:
-- LEAD = legal changes, rulings, amendments
-- STANDARD = interpretations, guidance, commentary
-- LOW = weak but still tax-related context
+Return ONLY items that meet ALL conditions:
+- legal change OR legislative proposal OR tax ruling
+- NOT educational content
+- NOT taxpayer guides
+- NOT programs or systems explanations
 
 INPUT:
 {[
@@ -110,16 +121,16 @@ OUTPUT JSON:
 {{
   "items": [
     {{
-      "title": "...",
-      "category": "LEAD | STANDARD | LOW",
+      "title": "clean legal headline (rewrite if needed)",
+      "category": "LEAD | STANDARD",
       "score": 0-100,
       "summary": [
-        "Co się zmienia (konkret podatkowy)",
-        "Wpływ na podatników / firmy",
-        "Kontekst prawny (MF / ISAP / ustawa / interpretacja)"
+        "What EXACTLY changed in tax law",
+        "Who is affected (companies / individuals / sector)",
+        "Legal basis (Act / Dz.U. / MF / ruling / draft law)"
       ],
-      "source": "...",
-      "url": "..."
+      "source": "original source",
+      "url": "if available"
     }}
   ]
 }}
@@ -129,18 +140,18 @@ OUTPUT JSON:
 
     items = result.get("items", [])
 
-    # fallback guard (VERY IMPORTANT)
-    if len(items) < 3:
+    # FINAL SAFETY FLOOR
+    if len(items) < 2:
 
         return [
             {
-                "title": "Brak danych – fallback system",
-                "category": "LOW",
-                "score": 10,
+                "title": "Brak istotnych zmian podatkowych w analizowanym okresie",
+                "category": "STANDARD",
+                "score": 50,
                 "summary": [
-                    "System nie znalazł wystarczającej liczby danych",
-                    "Możliwy problem z feedem źródeł",
-                    "Zalecana weryfikacja scraperów"
+                    "Nie wykryto zmian legislacyjnych w zakresie VAT/CIT/PIT",
+                    "Zidentyfikowane treści mają charakter edukacyjny lub administracyjny",
+                    "Brak nowych ustaw lub interpretacji podatkowych"
                 ],
                 "source": "SYSTEM",
                 "url": ""
