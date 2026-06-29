@@ -9,13 +9,9 @@ def extract_json(text):
     if not text:
         raise ValueError("Empty response")
 
-    text = text.strip()
-
-    text = re.sub(r"^```json", "", text)
+    text = re.sub(r"^```json", "", text.strip())
     text = re.sub(r"^```", "", text)
     text = re.sub(r"```$", "", text)
-
-    text = text.strip()
 
     try:
         return json.loads(text)
@@ -24,12 +20,10 @@ def extract_json(text):
         if match:
             return json.loads(match.group())
 
-        raise ValueError(f"Invalid JSON: {text[:300]}")
+        raise ValueError(text[:300])
 
 
 def safe_call(client, prompt):
-
-    last_error = None
 
     for i in range(5):
 
@@ -41,16 +35,17 @@ def safe_call(client, prompt):
                     {
                         "role": "system",
                         "content": """
-You are a BIG4 TAX LEGAL ANALYST.
+You are a TAX FACT ANALYST.
 
-You do NOT generate news.
-You ONLY analyze provided legal tax sources.
+You ONLY extract facts from provided legal tax news.
 
-Rules:
-- Only Polish
-- No hallucinations
-- Always cite source
-- Focus on legal changes only
+You do NOT decide relevance.
+
+You do NOT filter news.
+
+You do NOT remove anything.
+
+Return ONLY JSON.
 """
                     },
                     {"role": "user", "content": prompt}
@@ -59,11 +54,10 @@ Rules:
 
             return extract_json(response.choices[0].message.content)
 
-        except Exception as e:
-            last_error = e
+        except Exception:
             time.sleep(2 ** i)
 
-    raise Exception(f"OpenAI failed: {last_error}")
+    raise Exception("AI failed")
 
 
 def process_batch(news, api_key):
@@ -71,49 +65,28 @@ def process_batch(news, api_key):
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-You are preparing a MONTHLY TAX ALERT (Poland, CFO level).
+Extract tax facts from the following news items.
 
-ONLY analyze REAL TAX LAW EVENTS.
+DO NOT FILTER ANYTHING.
 
-INPUT SOURCES (already scraped, do not invent new ones):
-{[
-    {
-        "title": n["title"],
-        "source": n["source"],
-        "url": n.get("url", "")
-    } for n in news
-]}
-
-TASK:
-Select ONLY items that are:
-- legal changes (VAT/CIT/PIT/Excise)
-- draft laws (RCL)
-- interpretations (MF)
-- rulings affecting taxation
-
-EXCLUDE:
-- educational content
-- guides
-- programs (KPO, Polish Deal explanations)
-- administrative systems (e-TOLL etc.)
+INPUT:
+{news}
 
 OUTPUT JSON:
 
 {{
   "items": [
     {{
-      "title": "clean legal headline",
+      "title": "clean headline",
       "category": "LEAD | STANDARD",
-      "score": 0-100,
-
-      "summary": [
-        "WHAT changed in law (precise)",
-        "WHO is affected (business / individuals / sector)",
-        "LEGAL BASIS (Dz.U., MF, ISAP, RCL, ruling)"
-      ],
-
-      "source": "original source",
-      "url": "original URL or null"
+      "impact_score": 0-100,
+      "summary": {{
+        "what_changed": "...",
+        "impact": "...",
+        "legal_basis": "..."
+      }},
+      "source": "...",
+      "url": "..."
     }}
   ]
 }}
@@ -121,23 +94,4 @@ OUTPUT JSON:
 
     result = safe_call(client, prompt)
 
-    items = result.get("items", [])
-
-    # fallback safety
-    if len(items) < 2:
-        return [
-            {
-                "title": "Brak istotnych zmian podatkowych w okresie",
-                "category": "STANDARD",
-                "score": 50,
-                "summary": [
-                    "Nie zidentyfikowano zmian legislacyjnych VAT/CIT/PIT",
-                    "Dostępne treści mają charakter informacyjny lub administracyjny",
-                    "Brak nowych aktów prawnych w analizowanym okresie"
-                ],
-                "source": "SYSTEM",
-                "url": ""
-            }
-        ]
-
-    return items
+    return result.get("items", [])
