@@ -1,33 +1,25 @@
 def format_newsletter(items):
 
-    blocks = []
+    output = []
 
     for n in items:
 
-        title = n.get("title", "")
+        block = f"""
+🟢 {n.get('title','')}
 
-        what = n.get("what_changed", "")
-        impact = n.get("impact", "")
-        basis = n.get("legal_basis", "")
-        source = n.get("source", "")
-        url = n.get("url", "")
+📌 Co się zmienia:
+{n.get('what_changed','')}
 
-        text = f"""
-🟢 {title}
+📊 Znaczenie podatkowe:
+{n.get('impact','')}
 
-Co się zmienia:
-{what}
+⚖️ Podstawa prawna:
+{n.get('legal_basis','')}
 
-Znaczenie podatkowe:
-{impact}
-
-Podstawa prawna:
-{basis}
-
-Źródło: {source}
-{url}
+🔗 Źródło: {n.get('source','')}  
+{n.get('url','')}
 """
 
-        blocks.append(text)
+        output.append(block)
 
-    return "\n\n" + ("\n\n" + "-"*60 + "\n\n").join(blocks)
+    return "\n\n" + ("\n\n" + "-"*60 + "\n\n").join(output)
