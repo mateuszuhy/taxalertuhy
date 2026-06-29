@@ -7,7 +7,7 @@ if api_key:
 
     result = run_engine(api_key)
 
-    st.subheader("🟢 Żeneruj TAX ALERT")
+    st.subheader("🟢 TAX ALERT")
 
     for n in result["items"]:
 
