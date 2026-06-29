@@ -13,8 +13,8 @@ def run_engine(api_key):
 
     news = get_all_news()
 
-    # safety limit (prevents rate limit + noise)
-    news = news[:6]
+    # 🔵 NIE ZABIJAJ DANYCH (tylko limit kosztów)
+    news = news[:25]
 
     processed = process_batch(news, api_key)
 
