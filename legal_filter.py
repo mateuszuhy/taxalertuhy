@@ -1,45 +1,40 @@
-def is_tax_legal_event(title: str) -> bool:
+def relevance_score(title: str) -> int:
 
-    title = title.lower()
+    t = title.lower()
+    score = 0
 
-    # ❌ explicit rejects (education / admin / systems)
-    reject_keywords = [
-        "mam dochody",
+    # CORE TAX LAW SIGNALS
+    if any(x in t for x in ["vat", "cit", "pit", "akcyza"]):
+        score += 3
+
+    if any(x in t for x in ["ustawa", "nowelizacja", "projekt", "zmiana ustawy"]):
+        score += 3
+
+    if any(x in t for x in ["interpretacja", "mf", "dyrektor", "krajowa informacja skarbowa"]):
+        score += 2
+
+    if any(x in t for x in ["wyrok", "tsue", "nsa", "wsa"]):
+        score += 2
+
+    if any(x in t for x in ["prawo.pl", "rp.pl", "isap", "rcl"]):
+        score += 1
+
+    # NEGATIVE FILTER (EDUCATION / ADMIN)
+    if any(x in t for x in [
         "jak rozliczyć",
+        "mam dochód",
         "co to jest",
-        "e-toll",
-        "krajowy plan odbudowy",
-        "polski ład",
-        "audyt",
-        "kontrola zarządcza",
+        "instrukcja",
         "formularz",
-        "wniosek",
-        "rejestracja",
-        "program",
-        "system",
-        "instrukcja"
-    ]
+        "e-toll",
+        "polski ład",
+        "kpo",
+        "program"
+    ]):
+        score -= 10
 
-    if any(k in title for k in reject_keywords):
-        return False
+    return score
 
-    # ✔ legal triggers
-    legal_keywords = [
-        "ustawa",
-        "nowelizacja",
-        "zmiana ustawy",
-        "dz. u",
-        "ordynacja podatkowa",
-        "vat",
-        "cit",
-        "pit",
-        "interpretacja",
-        "wyrok",
-        "tsue",
-        "projekt ustawy",
-        "minister finansów",
-        "mf",
-        "rcl"
-    ]
 
-    return any(k in title for k in legal_keywords)
+def is_valid_tax_event(title: str) -> bool:
+    return relevance_score(title) >= 3
