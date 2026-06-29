@@ -1,9 +1,9 @@
 import streamlit as st
 from engine import run_engine
 
-st.set_page_config(page_title="UHY Tax Alert V3.3", layout="wide")
+st.set_page_config(page_title="UHY Tax Alert V3.4", layout="wide")
 
-st.title("🔵 UHY Tax Alert Factory – V3.3 Stable")
+st.title("🔵 UHY Tax Alert Factory – V3.4 (Tax Intelligence Engine)")
 
 api_key = st.text_input("OpenAI API Key", type="password")
 
@@ -14,9 +14,11 @@ if st.button("🚀 Generate Tax Alert"):
 
     if not api_key:
         st.error("Missing API key")
+
     else:
         try:
             st.session_state.result = run_engine(api_key)
+
         except Exception as e:
             st.error(f"Engine error: {str(e)}")
 
@@ -25,19 +27,18 @@ if st.session_state.result:
 
     result = st.session_state.result
 
-    st.subheader("🟢 LEAD NEWS")
+    st.subheader("🟢 LEAD TAX NEWS")
 
     for n in result["lead"]:
         st.write(f"**{n['title']}**")
         st.write(n.get("summary", []))
 
-    st.subheader("🟡 STANDARD NEWS")
+    st.subheader("🟡 STANDARD TAX NEWS")
 
     for n in result["standard"]:
         st.write(f"**{n['title']}**")
         st.write(n.get("summary", []))
 
-    # 🔥 SAFE FILE HANDLING
     file_path = result.get("file_path")
 
     if file_path:
@@ -47,5 +48,3 @@ if st.session_state.result:
                 f,
                 file_name="tax_alert.pptx"
             )
-    else:
-        st.warning("PPT file not generated")
