@@ -4,10 +4,7 @@ import re
 from openai import OpenAI
 
 
-# -----------------------------
-# STRICT JSON PARSER (UNCHANGED)
-# -----------------------------
-def extract_json(text: str):
+def extract_json(text):
 
     if not text:
         raise ValueError("Empty response")
@@ -23,18 +20,13 @@ def extract_json(text: str):
     try:
         return json.loads(text)
     except:
-
         match = re.search(r"\{.*\}", text, re.DOTALL)
-
         if match:
             return json.loads(match.group())
 
         raise ValueError(f"Invalid JSON: {text[:300]}")
 
 
-# -----------------------------
-# SAFE CALL
-# -----------------------------
 def safe_call(client, prompt):
 
     last_error = None
@@ -49,39 +41,23 @@ def safe_call(client, prompt):
                     {
                         "role": "system",
                         "content": """
-You are a SENIOR TAX LAWYER working in Big4 (EY/PwC style).
+You are a BIG4 TAX LEGAL ANALYST.
 
-You do NOT classify general information.
+You do NOT generate news.
+You ONLY analyze provided legal tax sources.
 
-You ONLY identify REAL TAX LAW EVENTS:
-
-VALID EVENTS:
-- changes in tax law (VAT/CIT/PIT/Excise)
-- amendments to acts (Dz.U.)
-- binding interpretations / rulings
-- draft laws / legislative proposals
-- court judgments affecting taxation
-
-INVALID CONTENT (MUST BE IGNORED):
-- educational articles ("what is PIT", "how to fill form")
-- social programs (Polish Deal explanations, e-TOLL descriptions)
-- personal situations ("I earn abroad", "I have freelance income")
-- public finance programs (KPO, Polish Fund)
-- administrative info (audits, budgeting, IT systems)
-
-Return ONLY JSON.
+Rules:
+- Only Polish
+- No hallucinations
+- Always cite source
+- Focus on legal changes only
 """
                     },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "user", "content": prompt}
                 ]
             )
 
-            content = response.choices[0].message.content
-
-            return extract_json(content)
+            return extract_json(response.choices[0].message.content)
 
         except Exception as e:
             last_error = e
@@ -90,47 +66,54 @@ Return ONLY JSON.
     raise Exception(f"OpenAI failed: {last_error}")
 
 
-# -----------------------------
-# MAIN PROCESSOR (FIXED LOGIC)
-# -----------------------------
 def process_batch(news, api_key):
 
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-Analyze ONLY REAL TAX LAW EVENTS in Poland.
+You are preparing a MONTHLY TAX ALERT (Poland, CFO level).
+
+ONLY analyze REAL TAX LAW EVENTS.
+
+INPUT SOURCES (already scraped, do not invent new ones):
+{[
+    {
+        "title": n["title"],
+        "source": n["source"],
+        "url": n.get("url", "")
+    } for n in news
+]}
 
 TASK:
-From the list below, extract ONLY items that represent legal or regulatory tax changes.
+Select ONLY items that are:
+- legal changes (VAT/CIT/PIT/Excise)
+- draft laws (RCL)
+- interpretations (MF)
+- rulings affecting taxation
 
-STRICT RULE:
-
-Return ONLY items that meet ALL conditions:
-- legal change OR legislative proposal OR tax ruling
-- NOT educational content
-- NOT taxpayer guides
-- NOT programs or systems explanations
-
-INPUT:
-{[
-    {"title": n["title"], "source": n["source"]} for n in news
-]}
+EXCLUDE:
+- educational content
+- guides
+- programs (KPO, Polish Deal explanations)
+- administrative systems (e-TOLL etc.)
 
 OUTPUT JSON:
 
 {{
   "items": [
     {{
-      "title": "clean legal headline (rewrite if needed)",
+      "title": "clean legal headline",
       "category": "LEAD | STANDARD",
       "score": 0-100,
+
       "summary": [
-        "What EXACTLY changed in tax law",
-        "Who is affected (companies / individuals / sector)",
-        "Legal basis (Act / Dz.U. / MF / ruling / draft law)"
+        "WHAT changed in law (precise)",
+        "WHO is affected (business / individuals / sector)",
+        "LEGAL BASIS (Dz.U., MF, ISAP, RCL, ruling)"
       ],
+
       "source": "original source",
-      "url": "if available"
+      "url": "original URL or null"
     }}
   ]
 }}
@@ -140,18 +123,17 @@ OUTPUT JSON:
 
     items = result.get("items", [])
 
-    # FINAL SAFETY FLOOR
+    # fallback safety
     if len(items) < 2:
-
         return [
             {
-                "title": "Brak istotnych zmian podatkowych w analizowanym okresie",
+                "title": "Brak istotnych zmian podatkowych w okresie",
                 "category": "STANDARD",
                 "score": 50,
                 "summary": [
-                    "Nie wykryto zmian legislacyjnych w zakresie VAT/CIT/PIT",
-                    "Zidentyfikowane treści mają charakter edukacyjny lub administracyjny",
-                    "Brak nowych ustaw lub interpretacji podatkowych"
+                    "Nie zidentyfikowano zmian legislacyjnych VAT/CIT/PIT",
+                    "Dostępne treści mają charakter informacyjny lub administracyjny",
+                    "Brak nowych aktów prawnych w analizowanym okresie"
                 ],
                 "source": "SYSTEM",
                 "url": ""
