@@ -1,50 +1,26 @@
 import streamlit as st
 from engine import run_engine
 
-st.set_page_config(page_title="UHY Tax Alert V3.4", layout="wide")
-
-st.title("🔵 UHY Tax Alert Factory – V3.4 by Roshi (Tax Intelligence Engine)")
-
 api_key = st.text_input("OpenAI API Key", type="password")
 
-if "result" not in st.session_state:
-    st.session_state.result = None
+if api_key:
 
-if st.button("🚀 Generuj Tax Alert"):
+    result = run_engine(api_key)
 
-    if not api_key:
-        st.error("Missing API key")
+    st.subheader("🟢 Żeneruj TAX ALERT")
 
-    else:
-        try:
-            st.session_state.result = run_engine(api_key)
+    for n in result["items"]:
 
-        except Exception as e:
-            st.error(f"Engine error: {str(e)}")
+        st.markdown(f"### {n.title}")
+        st.write(n.what_changed)
+        st.write(n.impact)
+        st.write(n.legal_basis)
+        st.write(f"Źródło: {n.source}")
+        st.write(n.url)
+        st.write("---")
 
-
-if st.session_state.result:
-
-    result = st.session_state.result
-
-    st.subheader("🟢 LEAD TAX NEWS")
-
-    for n in result["lead"]:
-        st.write(f"**{n['title']}**")
-        st.write(n.get("summary", []))
-
-    st.subheader("🟡 STANDARD TAX NEWS")
-
-    for n in result["standard"]:
-        st.write(f"**{n['title']}**")
-        st.write(n.get("summary", []))
-
-    file_path = result.get("file_path")
-
-    if file_path:
-        with open(file_path, "rb") as f:
-            st.download_button(
-                "⬇ Download PPT",
-                f,
-                file_name="tax_alert.pptx"
-            )
+    st.download_button(
+        "Pobierz PPT",
+        open(result["file_path"], "rb"),
+        file_name="tax_alert.pptx"
+    )
