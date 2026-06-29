@@ -3,14 +3,18 @@ from bs4 import BeautifulSoup
 
 
 # -----------------------------
-# SOURCE TIERS
+# CONTROLLED SOURCES (LESS NOISE)
 # -----------------------------
-PRIMARY_SOURCES = ["isap.sejm.gov.pl", "eli.gov.pl"]
-GOV_SOURCES = ["gov.pl", "podatki.gov.pl"]
-COMMENTARY_SOURCES = ["prawo.pl", "rp.pl"]
+SOURCES = [
+    ("https://isap.sejm.gov.pl", "ISAP"),
+    ("https://www.gov.pl/web/finanse", "MF"),
+    ("https://www.podatki.gov.pl", "TAX GOV"),
+    ("https://www.prawo.pl/podatki", "PRAWO.PL"),
+    ("https://www.rp.pl/podatki", "RP.PL")
+]
 
 
-def scrape_generic(url, source):
+def scrape(url, source):
 
     try:
         r = requests.get(url, timeout=10)
@@ -22,12 +26,11 @@ def scrape_generic(url, source):
 
             t = a.get_text(strip=True)
 
-            if len(t) > 40:
+            if t and len(t) > 40:
 
                 items.append({
                     "title": t,
-                    "source": source,
-                    "url": url
+                    "source": source
                 })
 
         return items
@@ -38,16 +41,18 @@ def scrape_generic(url, source):
 
 def get_all_news():
 
-    # PRIMARY LAW (highest value)
-    isap = scrape_generic("https://isap.sejm.gov.pl", "ISAP")
-    eli = scrape_generic("https://eli.gov.pl", "ELI")
+    all_items = []
 
-    # GOV GUIDANCE
-    mf = scrape_generic("https://www.gov.pl/web/finanse", "MF")
-    taxgov = scrape_generic("https://www.podatki.gov.pl", "TAX GOV")
+    for url, source in SOURCES:
+        all_items += scrape(url, source)
 
-    # COMMENTARY
-    rp = scrape_generic("https://www.rp.pl/podatki", "RP")
-    prawo = scrape_generic("https://www.prawo.pl/podatki", "PRAWO.PL")
+    # dedup early
+    seen = set()
+    unique = []
 
-    return isap + eli + mf + taxgov + rp + prawo
+    for i in all_items:
+        if i["title"] not in seen:
+            seen.add(i["title"])
+            unique.append(i)
+
+    return unique
