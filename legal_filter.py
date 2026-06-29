@@ -3,33 +3,33 @@ def relevance_score(title: str) -> int:
     t = title.lower()
     score = 0
 
-    # CORE TAX LAW SIGNALS
+    # TAX LAW SIGNALS
     if any(x in t for x in ["vat", "cit", "pit", "akcyza"]):
         score += 3
 
-    if any(x in t for x in ["ustawa", "nowelizacja", "projekt", "zmiana ustawy"]):
+    if any(x in t for x in ["ustawa", "nowelizacja", "projekt", "zmiana"]):
         score += 3
 
-    if any(x in t for x in ["interpretacja", "mf", "dyrektor", "krajowa informacja skarbowa"]):
+    if any(x in t for x in ["interpretacja", "mf", "krajowa informacja skarbowa"]):
         score += 2
 
     if any(x in t for x in ["wyrok", "tsue", "nsa", "wsa"]):
         score += 2
 
-    if any(x in t for x in ["prawo.pl", "rp.pl", "isap", "rcl"]):
+    if any(x in t for x in ["prawo.pl", "rp.pl", "isap", "rcl", "gov.pl"]):
         score += 1
 
     # NEGATIVE FILTER (EDUCATION / ADMIN)
     if any(x in t for x in [
         "jak rozliczyć",
-        "mam dochód",
         "co to jest",
         "instrukcja",
         "formularz",
         "e-toll",
         "polski ład",
         "kpo",
-        "program"
+        "program",
+        "poradnik"
     ]):
         score -= 10
 
