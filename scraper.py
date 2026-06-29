@@ -4,12 +4,12 @@ from legal_filter import is_valid_tax_event
 
 
 SOURCES = [
-    ("https://isap.sejm.gov.pl", "ISAP"),
-    ("https://rcl.gov.pl", "RCL"),
+    ("https://www.prawo.pl/podatki", "PRAWO"),
+    ("https://www.rp.pl/podatki", "RP"),
     ("https://www.gov.pl/web/finanse", "MF"),
     ("https://www.podatki.gov.pl", "TAX_GOV"),
-    ("https://www.prawo.pl/podatki", "PRAWO"),
-    ("https://www.rp.pl/podatki", "RP")
+    ("https://isap.sejm.gov.pl", "ISAP"),
+    ("https://rcl.gov.pl", "RCL")
 ]
 
 
@@ -22,12 +22,12 @@ def scrape(url, source):
         items = []
 
         for a in soup.find_all("a"):
-            t = a.get_text(strip=True)
+            title = a.get_text(strip=True)
 
-            if t and len(t) > 40:
-                if is_valid_tax_event(t):
+            if title and len(title) > 40:
+                if is_valid_tax_event(title):
                     items.append({
-                        "title": t,
+                        "title": title,
                         "source": source,
                         "url": url
                     })
