@@ -3,14 +3,14 @@ from engine import run_engine
 
 st.set_page_config(page_title="UHY Tax Alert V3.4", layout="wide")
 
-st.title("🔵 UHY Tax Alert Factory – V3.4 (Tax Intelligence Engine)")
+st.title("🔵 UHY Tax Alert Factory – V3.4 by Roshi (Tax Intelligence Engine)")
 
 api_key = st.text_input("OpenAI API Key", type="password")
 
 if "result" not in st.session_state:
     st.session_state.result = None
 
-if st.button("🚀 Generate Tax Alert"):
+if st.button("🚀 Generuj Tax Alert"):
 
     if not api_key:
         st.error("Missing API key")
