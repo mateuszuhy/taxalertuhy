@@ -1,25 +1,25 @@
 def format_newsletter(items):
 
-    output = []
+    blocks = []
 
     for n in items:
 
         block = f"""
-🟢 {n.get('title','')}
+🟢 {n.title}
 
 📌 Co się zmienia:
-{n.get('what_changed','')}
+{n.what_changed}
 
 📊 Znaczenie podatkowe:
-{n.get('impact','')}
+{n.impact}
 
 ⚖️ Podstawa prawna:
-{n.get('legal_basis','')}
+{n.legal_basis}
 
-🔗 Źródło: {n.get('source','')}  
-{n.get('url','')}
+🔗 Źródło: {n.source}
+{n.url}
 """
 
-        output.append(block)
+        blocks.append(block)
 
-    return "\n\n" + ("\n\n" + "-"*60 + "\n\n").join(output)
+    return "\n\n" + ("\n\n" + "-"*60 + "\n\n").join(blocks)
