@@ -1,8 +1,48 @@
 import time
 import json
+import re
 from openai import OpenAI
 
 
+# -----------------------------
+# JSON EXTRACTION (ROBUST)
+# -----------------------------
+def extract_json(text: str):
+
+    if not text:
+        raise ValueError("Empty response from OpenAI")
+
+    text = text.strip()
+
+    # remove markdown fences
+    text = re.sub(r"^```json", "", text)
+    text = re.sub(r"^```", "", text)
+    text = re.sub(r"```$", "", text)
+
+    text = text.strip()
+
+    # try direct JSON parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # fallback: extract JSON block
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # last resort debug output
+    raise ValueError(f"Invalid JSON from model (first 300 chars): {text[:300]}")
+
+
+# -----------------------------
+# SAFE OPENAI CALL
+# -----------------------------
 def safe_call(client, prompt):
 
     last_error = None
@@ -16,18 +56,10 @@ def safe_call(client, prompt):
                 messages=[
                     {
                         "role": "system",
-                        "content": """
-You are a senior TAX POLICY & LEGAL ANALYST for a Big4 firm.
-
-You prepare TAX ALERTS for CFOs.
-
-Rules:
-- Write in POLISH
-- Be precise and legal
-- Do NOT be generic
-- Always reference legal context (even if inferred)
-- Output ONLY valid JSON
-"""
+                        "content": (
+                            "You are a senior TAX LAW analyst for a Big4 firm. "
+                            "Return ONLY valid JSON. No markdown. No commentary. No text outside JSON."
+                        )
                     },
                     {
                         "role": "user",
@@ -38,59 +70,64 @@ Rules:
 
             content = response.choices[0].message.content
 
-            return json.loads(content)
+            return extract_json(content)
 
         except Exception as e:
             last_error = e
             time.sleep(2 ** i)
 
-    raise Exception(f"OpenAI failed: {last_error}")
+    raise Exception(f"OpenAI failed after retries: {last_error}")
 
 
+# -----------------------------
+# MAIN PROCESSOR
+# -----------------------------
 def process_batch(news, api_key):
 
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-You are preparing a MONTHLY TAX ALERT (Poland).
+You are preparing a MONTHLY TAX ALERT for Poland (CFO audience).
 
 TASK:
-Analyze and score relevance for June 2026 tax developments.
+Analyze tax-related legislative and regulatory developments.
 
-CLASSIFY:
+STRICT RULES:
+- Output ONLY JSON
+- No markdown
+- No commentary
+- No extra text
+- MUST be in Polish
+- Focus only on VAT, CIT, PIT, tax procedures, tax law changes
 
-- LEAD TAX NEWS = legislative changes, court rulings, draft laws
-- STANDARD TAX NEWS = guidance, interpretations, commentary
-- REJECT = irrelevant
+CLASSIFICATION:
+- LEAD = legislative changes / court rulings / binding interpretations
+- STANDARD = guidance / commentary / explanations
+- REJECT = irrelevant content
 
-IMPORTANT:
-- MUST be in POLISH
-- MUST include legal context (Dz.U., MF, ISAP if applicable)
-- MUST be usable in CFO newsletter
-
-INPUT:
+INPUT NEWS:
 {[
     {
         "title": n["title"],
-        "source": n["source"]
+        "source": n.get("source", "")
     } for n in news
 ]}
 
-OUTPUT JSON:
+OUTPUT FORMAT:
 
 {{
   "items": [
     {{
-      "title": "...",
+      "title": "string",
       "category": "LEAD | STANDARD | REJECT",
-      "score": 0-100,
+      "score": 0,
       "summary": [
-        "Co się zmienia (konkret prawny)",
-        "Kogo dotyczy (podatnicy / firmy / sektor)",
-        "Podstawa prawna lub kontekst (MF / ISAP / ustawa / projekt)"
+        "Opis zmiany podatkowej (konkretnie)",
+        "Kogo dotyczy (firmy / osoby fizyczne / sektor)",
+        "Podstawa prawna lub kontekst (Dz.U., MF, ISAP, projekt ustawy)"
       ],
-      "source": "...",
-      "url": "..."
+      "source": "string (optional)",
+      "url": "string (optional)"
     }}
   ]
 }}
@@ -98,11 +135,13 @@ OUTPUT JSON:
 
     result = safe_call(client, prompt)
 
+    items = result.get("items", [])
+
     cleaned = []
 
-    for item in result.get("items", []):
+    for item in items:
 
-        if item["category"] == "REJECT":
+        if item.get("category") == "REJECT":
             continue
 
         cleaned.append(item)
