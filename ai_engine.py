@@ -3,9 +3,6 @@ import json
 from openai import OpenAI
 
 
-# -----------------------------
-# SAFE CALL (ROBUST)
-# -----------------------------
 def safe_call(client, prompt):
 
     last_error = None
@@ -19,7 +16,18 @@ def safe_call(client, prompt):
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a senior TAX LAW analyst. Return ONLY valid JSON."
+                        "content": """
+You are a senior TAX POLICY & LEGAL ANALYST for a Big4 firm.
+
+You prepare TAX ALERTS for CFOs.
+
+Rules:
+- Write in POLISH
+- Be precise and legal
+- Do NOT be generic
+- Always reference legal context (even if inferred)
+- Output ONLY valid JSON
+"""
                     },
                     {
                         "role": "user",
@@ -36,30 +44,39 @@ def safe_call(client, prompt):
             last_error = e
             time.sleep(2 ** i)
 
-    raise Exception(f"OpenAI failed after retries: {last_error}")
+    raise Exception(f"OpenAI failed: {last_error}")
 
 
-# -----------------------------
-# BATCH PROCESSOR (TAX ONLY)
-# -----------------------------
 def process_batch(news, api_key):
 
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-You are a Big4 TAX POLICY AI engine.
+You are preparing a MONTHLY TAX ALERT (Poland).
 
 TASK:
-Analyze ONLY tax legislation and regulatory changes.
+Analyze and score relevance for June 2026 tax developments.
 
-STRICT FILTER:
-- Ignore administrative, HR, budgeting, internal audit content
-- Only VAT, CIT, PIT, tax law, procedures, ordinances
+CLASSIFY:
 
-INPUT ITEMS:
-{[n['title'] for n in news]}
+- LEAD TAX NEWS = legislative changes, court rulings, draft laws
+- STANDARD TAX NEWS = guidance, interpretations, commentary
+- REJECT = irrelevant
 
-OUTPUT JSON FORMAT:
+IMPORTANT:
+- MUST be in POLISH
+- MUST include legal context (Dz.U., MF, ISAP if applicable)
+- MUST be usable in CFO newsletter
+
+INPUT:
+{[
+    {
+        "title": n["title"],
+        "source": n["source"]
+    } for n in news
+]}
+
+OUTPUT JSON:
 
 {{
   "items": [
@@ -68,10 +85,12 @@ OUTPUT JSON FORMAT:
       "category": "LEAD | STANDARD | REJECT",
       "score": 0-100,
       "summary": [
-        "Describe exact legal tax change",
-        "Explain who is affected (companies / individuals)",
-        "State timing or legal status (draft / adopted / effective)"
-      ]
+        "Co się zmienia (konkret prawny)",
+        "Kogo dotyczy (podatnicy / firmy / sektor)",
+        "Podstawa prawna lub kontekst (MF / ISAP / ustawa / projekt)"
+      ],
+      "source": "...",
+      "url": "..."
     }}
   ]
 }}
@@ -86,11 +105,6 @@ OUTPUT JSON FORMAT:
         if item["category"] == "REJECT":
             continue
 
-        cleaned.append({
-            "title": item["title"],
-            "category": item["category"],
-            "score": item["score"],
-            "summary": item["summary"]
-        })
+        cleaned.append(item)
 
     return cleaned
