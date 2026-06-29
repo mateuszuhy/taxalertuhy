@@ -1,18 +1,17 @@
 from scraper import get_all_news
 from ai_engine import process_batch
+from editor import write_newsletter
 from ppt_generator import create_ppt
 from cache import get_cache, set_cache
 
 
 def categorize(item):
 
-    score = item.get("score", 0)
+    score = item.get("impact_score", 0)
 
-    if score >= 75:
+    if score >= 70:
         return "lead"
-    elif score >= 40:
-        return "standard"
-    return "low"
+    return "standard"
 
 
 def run_engine(api_key):
@@ -23,41 +22,44 @@ def run_engine(api_key):
 
     news = get_all_news()
 
-    news = news[:30]
+    news = news[:40]
 
-    processed = process_batch(news, api_key)
+    items = process_batch(news, api_key)
 
-    result = {
-        "lead": [],
-        "standard": []
-    }
+    lead = []
+    standard = []
 
-    for item in processed:
+    for i in items:
 
-        bucket = categorize(item)
+        bucket = categorize(i)
 
-        if bucket != "low":
-            result[bucket].append(item)
+        if bucket == "lead":
+            lead.append(i)
+        else:
+            standard.append(i)
 
     # GUARANTEE OUTPUT
-    if not result["lead"] and not result["standard"]:
+    if not lead and not standard:
 
-        result["standard"].append({
-            "title": "Brak zmian legislacyjnych – okres referencyjny",
-            "category": "STANDARD",
-            "score": 50,
-            "summary": [
-                "Nie wykryto zmian w przepisach VAT/CIT/PIT",
-                "Brak nowych ustaw, projektów lub interpretacji",
-                "Okres stabilny legislacyjnie"
-            ],
+        standard.append({
+            "title": "Brak istotnych zmian podatkowych",
+            "summary": {
+                "what_changed": "Brak zmian legislacyjnych VAT/CIT/PIT",
+                "impact": "Stabilne otoczenie podatkowe",
+                "legal_basis": "Brak nowych aktów prawnych"
+            },
             "source": "SYSTEM",
             "url": ""
         })
 
-    file_path = create_ppt(result)
-    result["file_path"] = file_path
+    file_path = create_ppt({
+        "lead": lead,
+        "standard": standard
+    })
 
-    set_cache(result)
-
-    return result
+    return {
+        "lead": lead,
+        "standard": standard,
+        "newsletter_text": write_newsletter(items),
+        "file_path": file_path
+    }
