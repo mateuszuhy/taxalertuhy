@@ -2,21 +2,30 @@ import requests
 from bs4 import BeautifulSoup
 
 
+# -----------------------------
+# TAX DOMAIN FILTER
+# -----------------------------
 TAX_KEYWORDS = [
-    "VAT", "CIT", "PIT", "akcyz", "podatek",
-    "ustawa podatkowa", "Ordynacja podatkowa",
-    "MF", "Minister Finansów",
-    "ISAP", "Dz.U."
+    "VAT", "CIT", "PIT", "podatek", "podatkowy",
+    "Ordynacja podatkowa", "akcyz",
+    "ustawa o podatku", "MF", "Minister Finansów",
+    "ISAP", "Dz.U.", "danina"
 ]
 
 
-def is_tax_related(text):
+def is_tax_related(text: str) -> bool:
+
+    if not text:
+        return False
 
     text_lower = text.lower()
 
     return any(k.lower() in text_lower for k in TAX_KEYWORDS)
 
 
+# -----------------------------
+# ISAP SCRAPER (FILTERED)
+# -----------------------------
 def scrape_isap():
 
     url = "https://isap.sejm.gov.pl"
@@ -29,7 +38,7 @@ def scrape_isap():
 
         t = a.get_text(strip=True)
 
-        if len(t) > 30 and is_tax_related(t):
+        if len(t) > 40 and is_tax_related(t):
 
             news.append({
                 "title": t,
@@ -39,6 +48,9 @@ def scrape_isap():
     return news
 
 
+# -----------------------------
+# MF SCRAPER (FILTERED)
+# -----------------------------
 def scrape_mf():
 
     url = "https://www.gov.pl/web/finanse"
@@ -51,7 +63,7 @@ def scrape_mf():
 
         t = a.get_text(strip=True)
 
-        if len(t) > 30 and is_tax_related(t):
+        if len(t) > 40 and is_tax_related(t):
 
             news.append({
                 "title": t,
@@ -61,6 +73,15 @@ def scrape_mf():
     return news
 
 
+# -----------------------------
+# FINAL NEWS PIPELINE
+# -----------------------------
 def get_all_news():
 
-    return scrape_isap() + scrape_mf()
+    isap = scrape_isap()
+    mf = scrape_mf()
+
+    combined = isap + mf
+
+    # final safety filter
+    return [n for n in combined if is_tax_related(n["title"])]
