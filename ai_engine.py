@@ -6,10 +6,9 @@ from openai import OpenAI
 
 def extract_json(text):
 
-    if not text:
-        raise ValueError("Empty response")
+    text = text.strip()
 
-    text = re.sub(r"^```json", "", text.strip())
+    text = re.sub(r"^```json", "", text)
     text = re.sub(r"^```", "", text)
     text = re.sub(r"```$", "", text)
 
@@ -20,7 +19,7 @@ def extract_json(text):
         if match:
             return json.loads(match.group())
 
-        raise ValueError(text[:300])
+        raise ValueError("Invalid JSON")
 
 
 def safe_call(client, prompt):
@@ -35,17 +34,14 @@ def safe_call(client, prompt):
                     {
                         "role": "system",
                         "content": """
-You are a TAX FACT ANALYST.
+Jesteś analitykiem prawa podatkowego (Big4).
 
-You ONLY extract facts from provided legal tax news.
-
-You do NOT decide relevance.
-
-You do NOT filter news.
-
-You do NOT remove anything.
-
-Return ONLY JSON.
+ZASADY:
+- język WYŁĄCZNIE polski
+- NIE tworzysz narracji
+- NIE oceniasz znaczenia
+- NIE odrzucasz newsów
+- tylko ekstrakcja faktów
 """
                     },
                     {"role": "user", "content": prompt}
@@ -65,28 +61,22 @@ def process_batch(news, api_key):
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-Extract tax facts from the following news items.
+Przekształć poniższe dane w strukturalne fakty podatkowe.
 
-DO NOT FILTER ANYTHING.
-
-INPUT:
+DANE:
 {news}
 
-OUTPUT JSON:
+ZWRÓĆ JSON:
 
 {{
   "items": [
     {{
-      "title": "clean headline",
-      "category": "LEAD | STANDARD",
-      "impact_score": 0-100,
-      "summary": {{
-        "what_changed": "...",
-        "impact": "...",
-        "legal_basis": "..."
-      }},
-      "source": "...",
-      "url": "..."
+      "title": "tytuł po polsku",
+      "what_changed": "opis zmiany podatkowej (PL)",
+      "impact": "wpływ dla podatników (PL, CFO style)",
+      "legal_basis": "podstawa prawna (PL)",
+      "source": "źródło",
+      "url": "link"
     }}
   ]
 }}
