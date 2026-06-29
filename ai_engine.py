@@ -19,7 +19,7 @@ def extract_json(text):
         if match:
             return json.loads(match.group())
 
-        raise ValueError("Invalid JSON")
+        raise ValueError("Invalid JSON output")
 
 
 def safe_call(client, prompt):
@@ -34,14 +34,14 @@ def safe_call(client, prompt):
                     {
                         "role": "system",
                         "content": """
-Jesteś analitykiem prawa podatkowego (Big4).
+Jesteś analitykiem podatkowym (Big4).
 
 ZASADY:
 - język WYŁĄCZNIE polski
-- NIE tworzysz narracji
-- NIE oceniasz znaczenia
-- NIE odrzucasz newsów
-- tylko ekstrakcja faktów
+- NIE zmieniasz struktury danych
+- NIE tworzysz nowych pól
+- NIE usuwasz pól
+- NIE oceniasz newsów
 """
                     },
                     {"role": "user", "content": prompt}
@@ -61,25 +61,30 @@ def process_batch(news, api_key):
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-Przekształć poniższe dane w strukturalne fakty podatkowe.
+Przekształć dane wejściowe do ujednoliconego formatu podatkowego.
 
 DANE:
 {news}
 
-ZWRÓĆ JSON:
+ZWRÓĆ WYŁĄCZNIE JSON:
 
 {{
   "items": [
     {{
       "title": "tytuł po polsku",
-      "what_changed": "opis zmiany podatkowej (PL)",
-      "impact": "wpływ dla podatników (PL, CFO style)",
+      "what_changed": "opis zmiany (PL)",
+      "impact": "wpływ podatkowy (PL, CFO style)",
       "legal_basis": "podstawa prawna (PL)",
       "source": "źródło",
       "url": "link"
     }}
   ]
 }}
+
+ZASADY:
+- NIE używaj angielskiego
+- NIE skracaj do bulletów
+- NIE zmieniaj struktury JSON
 """
 
     result = safe_call(client, prompt)
