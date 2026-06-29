@@ -3,85 +3,51 @@ from bs4 import BeautifulSoup
 
 
 # -----------------------------
-# TAX DOMAIN FILTER
+# SOURCE TIERS
 # -----------------------------
-TAX_KEYWORDS = [
-    "VAT", "CIT", "PIT", "podatek", "podatkowy",
-    "Ordynacja podatkowa", "akcyz",
-    "ustawa o podatku", "MF", "Minister Finansów",
-    "ISAP", "Dz.U.", "danina"
-]
+PRIMARY_SOURCES = ["isap.sejm.gov.pl", "eli.gov.pl"]
+GOV_SOURCES = ["gov.pl", "podatki.gov.pl"]
+COMMENTARY_SOURCES = ["prawo.pl", "rp.pl"]
 
 
-def is_tax_related(text: str) -> bool:
+def scrape_generic(url, source):
 
-    if not text:
-        return False
+    try:
+        r = requests.get(url, timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
 
-    text_lower = text.lower()
+        items = []
 
-    return any(k.lower() in text_lower for k in TAX_KEYWORDS)
+        for a in soup.find_all("a"):
 
+            t = a.get_text(strip=True)
 
-# -----------------------------
-# ISAP SCRAPER (FILTERED)
-# -----------------------------
-def scrape_isap():
+            if len(t) > 40:
 
-    url = "https://isap.sejm.gov.pl"
-    r = requests.get(url, timeout=10)
-    soup = BeautifulSoup(r.text, "html.parser")
+                items.append({
+                    "title": t,
+                    "source": source,
+                    "url": url
+                })
 
-    news = []
+        return items
 
-    for a in soup.find_all("a"):
-
-        t = a.get_text(strip=True)
-
-        if len(t) > 40 and is_tax_related(t):
-
-            news.append({
-                "title": t,
-                "source": "ISAP"
-            })
-
-    return news
+    except:
+        return []
 
 
-# -----------------------------
-# MF SCRAPER (FILTERED)
-# -----------------------------
-def scrape_mf():
-
-    url = "https://www.gov.pl/web/finanse"
-    r = requests.get(url, timeout=10)
-    soup = BeautifulSoup(r.text, "html.parser")
-
-    news = []
-
-    for a in soup.find_all("a"):
-
-        t = a.get_text(strip=True)
-
-        if len(t) > 40 and is_tax_related(t):
-
-            news.append({
-                "title": t,
-                "source": "MF"
-            })
-
-    return news
-
-
-# -----------------------------
-# FINAL NEWS PIPELINE
-# -----------------------------
 def get_all_news():
 
-    isap = scrape_isap()
-    mf = scrape_mf()
+    # PRIMARY LAW (highest value)
+    isap = scrape_generic("https://isap.sejm.gov.pl", "ISAP")
+    eli = scrape_generic("https://eli.gov.pl", "ELI")
 
-    combined = isap + mf
+    # GOV GUIDANCE
+    mf = scrape_generic("https://www.gov.pl/web/finanse", "MF")
+    taxgov = scrape_generic("https://www.podatki.gov.pl", "TAX GOV")
 
-    # final safety filter
-    return [n for n in combined if is_tax_related(n["title"])]
+    # COMMENTARY
+    rp = scrape_generic("https://www.rp.pl/podatki", "RP")
+    prawo = scrape_generic("https://www.prawo.pl/podatki", "PRAWO.PL")
+
+    return isap + eli + mf + taxgov + rp + prawo
