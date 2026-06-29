@@ -13,7 +13,7 @@ def run_engine(api_key):
 
     news = get_all_news()
 
-    # 🔥 safety limit (Streamlit stability)
+    # safety limit (prevents rate limit + noise)
     news = news[:6]
 
     processed = process_batch(news, api_key)
@@ -25,7 +25,7 @@ def run_engine(api_key):
 
     file_path = create_ppt(result)
 
-    result["file_path"] = file_path  # 🔥 IMPORTANT FIX
+    result["file_path"] = file_path
 
     set_cache(result)
 
