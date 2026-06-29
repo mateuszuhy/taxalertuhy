@@ -1,9 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
-from legal_filter import is_tax_legal_event
+from legal_filter import is_valid_tax_event
 
 
-# 🔵 MUSI BYĆ GLOBALNIE ZDEFINIOWANE
 SOURCES = [
     ("https://isap.sejm.gov.pl", "ISAP"),
     ("https://rcl.gov.pl", "RCL"),
@@ -26,11 +25,12 @@ def scrape(url, source):
             t = a.get_text(strip=True)
 
             if t and len(t) > 40:
-                items.append({
-                    "title": t,
-                    "source": source,
-                    "url": url
-                })
+                if is_valid_tax_event(t):
+                    items.append({
+                        "title": t,
+                        "source": source,
+                        "url": url
+                    })
 
         return items
 
@@ -43,12 +43,7 @@ def get_all_news():
     all_items = []
 
     for url, source in SOURCES:
-
-        items = scrape(url, source)
-
-        for i in items:
-            if is_tax_legal_event(i["title"]):
-                all_items.append(i)
+        all_items += scrape(url, source)
 
     # dedupe
     seen = set()
