@@ -1,60 +1,90 @@
 import time
+import json
 from openai import OpenAI
 
 
+# -----------------------------
+# SAFE CALL (HARD GUARANTEE)
+# -----------------------------
 def safe_call(client, prompt):
+
+    last_error = None
 
     for i in range(5):
 
         try:
-            return client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}]
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a tax classification engine. Always return valid JSON only."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0
             )
 
-        except Exception:
-            time.sleep((2 ** i))
+            content = response.choices[0].message.content
+
+            # 🔥 FORCE JSON PARSE
+            return json.loads(content)
+
+        except Exception as e:
+            last_error = e
+            time.sleep(2 ** i)
+
+    raise Exception(f"OpenAI failed after retries: {last_error}")
 
 
+# -----------------------------
+# MAIN BATCH PROCESSOR
+# -----------------------------
 def process_batch(news, api_key):
 
     client = OpenAI(api_key=api_key)
 
-    batch_prompt = f"""
-You are a Big4 tax AI engine.
+    prompt = f"""
+Classify ALL items below into structured JSON.
 
-Analyze all items below:
+RULES:
+- return ONLY valid JSON
+- no commentary
+- no markdown
 
+OUTPUT FORMAT:
+{{
+  "items": [
+    {{
+      "title": "...",
+      "category": "LEAD | STANDARD | REJECT",
+      "score": 0-100,
+      "summary": ["bullet1", "bullet2", "bullet3"]
+    }}
+  ]
+}}
+
+INPUT:
 {[n['title'] for n in news]}
-
-For each item return JSON:
-- title
-- score (0-100)
-- category (LEAD / STANDARD / REJECT)
-- summary (max 3 bullets)
 """
 
-    response = safe_call(client, batch_prompt)
+    result = safe_call(client, prompt)
 
-    raw = response.choices[0].message.content
+    cleaned = []
 
-    # 🔥 SIMPLIFIED PARSER (production would use JSON parse)
-    results = []
+    for item in result.get("items", []):
 
-    for n in news:
+        if item["category"] == "REJECT":
+            continue
 
-        if "ustawa" in n["title"].lower():
-            category = "LEAD"
-            score = 85
-        else:
-            category = "STANDARD"
-            score = 60
-
-        results.append({
-            "title": n["title"],
-            "score": score,
-            "category": category,
-            "summary": "Auto-generated summary"
+        cleaned.append({
+            "title": item["title"],
+            "category": item["category"],
+            "score": item["score"],
+            "summary": item["summary"]
         })
 
-    return results
+    return cleaned
