@@ -37,5 +37,4 @@ def scrape_isap():
 
 
 def get_all_news():
-
     return scrape_mf() + scrape_isap()
