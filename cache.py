@@ -1,6 +1,5 @@
 _cache = None
 
-
 def get_cache():
     global _cache
     return _cache
