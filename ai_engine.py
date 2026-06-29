@@ -5,43 +5,35 @@ from openai import OpenAI
 
 
 # -----------------------------
-# JSON EXTRACTION (ROBUST)
+# SAFE JSON PARSER
 # -----------------------------
 def extract_json(text: str):
 
     if not text:
-        raise ValueError("Empty response from OpenAI")
+        raise ValueError("Empty response")
 
     text = text.strip()
 
-    # remove markdown fences
     text = re.sub(r"^```json", "", text)
     text = re.sub(r"^```", "", text)
     text = re.sub(r"```$", "", text)
 
     text = text.strip()
 
-    # try direct JSON parse
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+    except:
 
-    # fallback: extract JSON block
-    match = re.search(r"\{.*\}", text, re.DOTALL)
+        match = re.search(r"\{.*\}", text, re.DOTALL)
 
-    if match:
-        try:
+        if match:
             return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
 
-    # last resort debug output
-    raise ValueError(f"Invalid JSON from model (first 300 chars): {text[:300]}")
+        raise ValueError(f"Invalid JSON: {text[:300]}")
 
 
 # -----------------------------
-# SAFE OPENAI CALL
+# SAFE CALL
 # -----------------------------
 def safe_call(client, prompt):
 
@@ -56,10 +48,15 @@ def safe_call(client, prompt):
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are a senior TAX LAW analyst for a Big4 firm. "
-                            "Return ONLY valid JSON. No markdown. No commentary. No text outside JSON."
-                        )
+                        "content": """
+You are a Big4 TAX INTELLIGENCE ANALYST.
+
+Rules:
+- Always respond in POLISH
+- Never output anything outside JSON
+- Prefer completeness over strict filtering
+- Always assign relevance score (0-100)
+"""
                     },
                     {
                         "role": "user",
@@ -76,58 +73,53 @@ def safe_call(client, prompt):
             last_error = e
             time.sleep(2 ** i)
 
-    raise Exception(f"OpenAI failed after retries: {last_error}")
+    raise Exception(f"OpenAI failed: {last_error}")
 
 
 # -----------------------------
-# MAIN PROCESSOR
+# MAIN ENGINE
 # -----------------------------
 def process_batch(news, api_key):
 
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
-You are preparing a MONTHLY TAX ALERT for Poland (CFO audience).
+You are building a MONTHLY TAX ALERT (Poland, CFO level).
 
 TASK:
-Analyze tax-related legislative and regulatory developments.
+Analyze tax-related news and assign relevance.
 
-STRICT RULES:
-- Output ONLY JSON
-- No markdown
-- No commentary
-- No extra text
-- MUST be in Polish
-- Focus only on VAT, CIT, PIT, tax procedures, tax law changes
+IMPORTANT RULES:
+- DO NOT over-filter
+- Every item must get a score (0–100)
+- Even weak tax relevance must be classified
+- No REJECT category anymore
 
 CLASSIFICATION:
-- LEAD = legislative changes / court rulings / binding interpretations
-- STANDARD = guidance / commentary / explanations
-- REJECT = irrelevant content
+- LEAD = legal changes, rulings, amendments
+- STANDARD = interpretations, guidance, commentary
+- LOW = weak but still tax-related context
 
-INPUT NEWS:
+INPUT:
 {[
-    {
-        "title": n["title"],
-        "source": n.get("source", "")
-    } for n in news
+    {"title": n["title"], "source": n["source"]} for n in news
 ]}
 
-OUTPUT FORMAT:
+OUTPUT JSON:
 
 {{
   "items": [
     {{
-      "title": "string",
-      "category": "LEAD | STANDARD | REJECT",
-      "score": 0,
+      "title": "...",
+      "category": "LEAD | STANDARD | LOW",
+      "score": 0-100,
       "summary": [
-        "Opis zmiany podatkowej (konkretnie)",
-        "Kogo dotyczy (firmy / osoby fizyczne / sektor)",
-        "Podstawa prawna lub kontekst (Dz.U., MF, ISAP, projekt ustawy)"
+        "Co się zmienia (konkret podatkowy)",
+        "Wpływ na podatników / firmy",
+        "Kontekst prawny (MF / ISAP / ustawa / interpretacja)"
       ],
-      "source": "string (optional)",
-      "url": "string (optional)"
+      "source": "...",
+      "url": "..."
     }}
   ]
 }}
@@ -137,13 +129,22 @@ OUTPUT FORMAT:
 
     items = result.get("items", [])
 
-    cleaned = []
+    # fallback guard (VERY IMPORTANT)
+    if len(items) < 3:
 
-    for item in items:
+        return [
+            {
+                "title": "Brak danych – fallback system",
+                "category": "LOW",
+                "score": 10,
+                "summary": [
+                    "System nie znalazł wystarczającej liczby danych",
+                    "Możliwy problem z feedem źródeł",
+                    "Zalecana weryfikacja scraperów"
+                ],
+                "source": "SYSTEM",
+                "url": ""
+            }
+        ]
 
-        if item.get("category") == "REJECT":
-            continue
-
-        cleaned.append(item)
-
-    return cleaned
+    return items
